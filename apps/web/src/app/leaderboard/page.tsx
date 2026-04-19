@@ -25,15 +25,17 @@ export default function LeaderboardPage() {
   });
 
   const subjects = subjectsRes?.success ? subjectsRes.data : [];
-  const entries  = lbRes?.success ? lbRes.data : [];
-  const medals   = ['🥇', '🥈', '🥉'];
 
-  // Filter subjects by search input
+  // ← Filter out scores below 30%
+  const allEntries = lbRes?.success ? lbRes.data : [];
+  const entries    = allEntries.filter((e: any) => e.score >= 30);
+
+  const medals = ['🥇', '🥈', '🥉'];
+
   const filteredSubjects = subjects.filter((s: string) =>
     s.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -68,7 +70,6 @@ export default function LeaderboardPage() {
           <p className="text-xs font-bold text-[#0D2137] uppercase tracking-wide mb-3">Filter by Subject</p>
 
           <div className="flex items-center gap-3 flex-wrap">
-            {/* All subjects button */}
             <button
               onClick={() => selectSubject('')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border flex-shrink-0 ${
@@ -80,7 +81,6 @@ export default function LeaderboardPage() {
               🌍 All Subjects
             </button>
 
-            {/* Selected subject badge */}
             {subject && (
               <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
                 <span className="text-xs font-bold text-amber-700">{subject}</span>
@@ -93,7 +93,6 @@ export default function LeaderboardPage() {
               </div>
             )}
 
-            {/* Searchable dropdown */}
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setOpen(o => !o)}
@@ -105,7 +104,6 @@ export default function LeaderboardPage() {
 
               {open && (
                 <div className="absolute top-full left-0 mt-1.5 w-72 bg-white border border-gray-200 rounded-[14px] shadow-lg z-50 overflow-hidden">
-                  {/* Search input */}
                   <div className="p-3 border-b border-gray-100">
                     <input
                       type="text"
@@ -116,8 +114,6 @@ export default function LeaderboardPage() {
                       className="w-full px-3 py-2 rounded-lg border border-gray-200 text-xs text-[#1E293B] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:text-gray-300"
                     />
                   </div>
-
-                  {/* Subject list */}
                   <div className="max-h-60 overflow-y-auto">
                     {filteredSubjects.length === 0 ? (
                       <p className="text-xs text-gray-400 text-center py-4">No subjects found</p>
@@ -127,9 +123,7 @@ export default function LeaderboardPage() {
                           key={s}
                           onClick={() => selectSubject(s)}
                           className={`w-full text-left px-4 py-2.5 text-xs font-semibold transition-colors hover:bg-amber-50 hover:text-amber-700 ${
-                            subject === s
-                              ? 'bg-amber-50 text-amber-700'
-                              : 'text-[#0D2137]'
+                            subject === s ? 'bg-amber-50 text-amber-700' : 'text-[#0D2137]'
                           }`}
                         >
                           {subject === s && <span className="mr-2">✓</span>}
@@ -143,11 +137,10 @@ export default function LeaderboardPage() {
             </div>
           </div>
 
-          {/* Showing filter summary */}
           <p className="text-[11px] text-gray-400 mt-3">
             {subject
-              ? `Showing rankings for ${subject}`
-              : `Showing overall rankings across all ${subjects.length} subjects`
+              ? `Showing rankings for ${subject} — minimum score 30%`
+              : `Showing overall rankings across all ${subjects.length} subjects — minimum score 30%`
             }
           </p>
         </div>
@@ -161,8 +154,8 @@ export default function LeaderboardPage() {
               icon="🏆"
               title="No rankings yet"
               description={subject
-                ? `No one has completed a timed ${subject} quiz yet`
-                : 'Complete timed quizzes to appear on the leaderboard'
+                ? `No one has scored 30%+ in a timed ${subject} quiz yet`
+                : 'Complete timed quizzes with 30%+ to appear on the leaderboard'
               }
               action={{ label: 'Start a Quiz', href: '/quiz' }}
             />
@@ -172,11 +165,13 @@ export default function LeaderboardPage() {
                 <tr className="border-b border-gray-100">
                   <th className="text-left py-3 px-5 text-xs font-bold text-gray-400 uppercase tracking-wide w-16">#</th>
                   <th className="text-left py-3 px-5 text-xs font-bold text-gray-400 uppercase tracking-wide">Student</th>
+                  {/* ← Added Subject column */}
+                  <th className="text-left py-3 px-5 text-xs font-bold text-gray-400 uppercase tracking-wide hidden sm:table-cell">Subject</th>
                   <th className="text-right py-3 px-5 text-xs font-bold text-gray-400 uppercase tracking-wide">Score</th>
                 </tr>
               </thead>
               <tbody>
-                {entries.map((entry, i) => {
+                {entries.map((entry: any, i: number) => {
                   const isMe = entry.user.id === user?.id;
                   const initials = entry.user.displayName
                     .split(' ')
@@ -184,6 +179,13 @@ export default function LeaderboardPage() {
                     .join('')
                     .slice(0, 2)
                     .toUpperCase();
+
+                  // Score color based on value
+                  const scoreColor =
+                    entry.score >= 70 ? 'text-green-600' :
+                    entry.score >= 50 ? 'text-amber-600' :
+                    'text-red-500';
+
                   return (
                     <tr
                       key={entry.user.id}
@@ -202,14 +204,26 @@ export default function LeaderboardPage() {
                           <div className="w-8 h-8 rounded-full bg-[#0D2137] flex items-center justify-center text-[10px] font-black text-[#F59E0B] flex-shrink-0">
                             {initials}
                           </div>
-                          <p className={`text-sm font-semibold ${isMe ? 'text-amber-700' : 'text-[#0D2137]'}`}>
-                            {entry.user.displayName}
-                            {isMe && <span className="ml-1 text-xs font-normal text-amber-500">(you)</span>}
-                          </p>
+                          <div>
+                            <p className={`text-sm font-semibold ${isMe ? 'text-amber-700' : 'text-[#0D2137]'}`}>
+                              {entry.user.displayName}
+                              {isMe && <span className="ml-1 text-xs font-normal text-amber-500">(you)</span>}
+                            </p>
+                            {/* ← Show subject on mobile (hidden column on desktop) */}
+                            <p className="text-[10px] text-gray-400 sm:hidden">
+                              {subject || entry.subject || 'All Subjects'}
+                            </p>
+                          </div>
                         </div>
                       </td>
+                      {/* ← Subject column (desktop only) */}
+                      <td className="py-3.5 px-5 hidden sm:table-cell">
+                        <span className="text-xs font-semibold bg-blue-50 text-blue-700 px-2 py-1 rounded-lg">
+                          {subject || entry.subject || 'Overall'}
+                        </span>
+                      </td>
                       <td className="py-3.5 px-5 text-right">
-                        <span className={`text-sm font-black ${isMe ? 'text-amber-600' : 'text-[#0D2137]'}`}>
+                        <span className={`text-sm font-black ${isMe ? 'text-amber-600' : scoreColor}`}>
                           {entry.score}%
                         </span>
                       </td>
@@ -221,7 +235,7 @@ export default function LeaderboardPage() {
           )}
         </div>
 
-        {entries.length > 0 && !entries.find(e => e.user.id === user?.id) && (
+        {entries.length > 0 && !entries.find((e: any) => e.user.id === user?.id) && (
           <p className="text-center text-xs text-gray-400 mt-4">
             You&apos;re not in the top 50 yet — complete more timed quizzes to earn your spot.
           </p>
