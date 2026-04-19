@@ -62,6 +62,8 @@ const nextConfig = {
     root: path.resolve(__dirname, '../../..'),
   },
 
+   outputFileTracingRoot: path.resolve(__dirname, '../../..'),
+
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
