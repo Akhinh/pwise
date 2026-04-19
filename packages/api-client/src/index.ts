@@ -7,7 +7,7 @@
 import type {
   ApiResponse, PaginatedResponse, User, Question, QuestionForQuiz,
   QuizSession, QuizResult, ProgressSummary, SubjectProgress,
-  ActivityDataPoint, AiExplanation, AiChatMessage, Subject, Subscription,
+  ActivityDataPoint, AiExplanation, AiChatMessage, Subscription,
   ExamType, QuizMode, Difficulty,
 } from '@prepwise/types';
 
@@ -113,7 +113,7 @@ export const questions = {
     request<Question>(`/api/v1/questions/${id}`),
 
   getSubjects: () =>
-    request<Subject[]>('/api/v1/questions/subjects'),
+  request<string[]>('/api/v1/questions/subjects'),
 
   getYears: (subject: string, examType: ExamType) =>
     request<number[]>(`/api/v1/questions/years?subject=${subject}&examType=${examType}`),

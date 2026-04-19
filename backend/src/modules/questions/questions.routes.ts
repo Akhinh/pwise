@@ -36,7 +36,7 @@ export const questionsController = {
     } catch (err) { next(err); }
   },
 
-  async getSubjects(req: Request, res: Response, next: NextFunction) {
+  async getSubjects(_req: Request, res: Response, next: NextFunction) {
     try {
       const subjects = await questionsService.getSubjects();
       res.json({ success: true, data: subjects });
