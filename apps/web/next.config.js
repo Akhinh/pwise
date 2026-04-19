@@ -58,11 +58,11 @@ const nextConfig = {
   devIndicators: false,
 
   // point Turbopack root to the monorepo root (3 levels up from apps/web)
-  turbopack: {
-    root: path.resolve(__dirname, '../../..'),
-  },
+ turbopack: {
+  root: path.resolve(__dirname, '../..'),
+},
 
-   outputFileTracingRoot: path.resolve(__dirname, '../../..'),
+outputFileTracingRoot: path.resolve(__dirname, '../..'),
 
   images: {
     remotePatterns: [
