@@ -1,0 +1,42 @@
+{
+  "name": "prepwise",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PrepWise — AI-powered WAEC & NECO exam preparation platform",
+  "workspaces": [
+    "apps/*",
+    "backend",
+    "packages/*",
+    "scraper"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "dev:web": "turbo run dev --filter=@prepwise/web",
+    "dev:mobile": "turbo run dev --filter=@prepwise/mobile",
+    "dev:backend": "turbo run dev --filter=@prepwise/backend",
+    "dev:admin": "turbo run dev --filter=@prepwise/admin",
+    "db:migrate": "cd backend && npm run db:migrate",
+    "db:seed": "cd backend && npm run db:seed",
+    "scrape": "cd scraper && npm run scrape",
+    "build:web": "turbo run build --filter=@prepwise/web"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "prettier": "^3.2.5",
+    "tsconfig-paths": "^4.2.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "packageManager": "npm@10.0.0",
+  "overrides": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}

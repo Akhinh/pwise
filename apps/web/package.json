@@ -1,0 +1,37 @@
+{
+  "name": "@prepwise/web",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build --no-lint",
+    "start": "next start -p 3000"
+  },
+  "dependencies": {
+    "@ducanh2912/next-pwa": "^10.2.9",
+    "@prepwise/api-client": "*",
+    "@prepwise/types": "*",
+    "@prepwise/utils": "*",
+    "@tanstack/react-query": "^5.37.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.383.0",
+    "next": "^16.2.3",
+    "next-pwa": "^5.6.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.12.6",
+    "sonner": "^1.4.41",
+    "tailwind-merge": "^2.3.0",
+    "zustand": "^4.5.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.8",
+    "sharp": "^0.34.5",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.4.0"
+  }
+}

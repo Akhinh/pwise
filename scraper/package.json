@@ -1,0 +1,22 @@
+{
+  "name": "@prepwise/scraper",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "scrape:myschool": "ts-node src/scrapers/myschool.ts",
+    "validate": "ts-node src/validators/validate.ts",
+    "import": "ts-node src/validators/validate.ts"
+  },
+  "dependencies": {
+    "@prepwise/types": "*",
+    "@supabase/supabase-js": "^2.43.0",
+    "playwright": "^1.44.0",
+    "zod": "^3.23.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0",
+    "@types/node": "^20.12.0"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "..",
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "paths": {
+      "@prepwise/types": ["../packages/types/src/index.ts"],
+      "@prepwise/utils": ["../packages/utils/src/index.ts"],
+      "@prepwise/api-client": ["../packages/api-client/src/index.ts"]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "../packages/types/src/**/*",
+    "../packages/utils/src/**/*"
+  ],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+}
