@@ -90,7 +90,7 @@ function ActiveQuizPage() {
   useEffect(() => {
     (async () => {
       const res = await quiz.start({ mode, subject, examType, year, questionCount: count, timeLimitMinutes: mode === 'TIMED' ? 30 : undefined });
-      if (!res.success) { toast.error((res as any).error ?? 'Failed to start quiz'); router.push('/quiz'); return; }
+      if (!res.success) { toast.error((res as any).error || 'Failed to start quiz'); router.push('/quiz'); return; }
       setSession(res.data.session);
       setQuestions(res.data.questions);
       if (mode === 'TIMED') setTimeLeft(30 * 60);
@@ -144,9 +144,11 @@ function ActiveQuizPage() {
       if (res.success) {
         setFlaggedIds(prev => new Set(prev).add(q.id));
         toast.success('Question reported. Thanks for the feedback!');
+      } else if (!res.success && ((res as any).code === 'ALREADY_FLAGGED' || (res as any).error?.toLowerCase().includes('already'))) {
+        setFlaggedIds(prev => new Set(prev).add(q.id));
+        toast.info('Already reported this question.');
       } else {
-        // Show the specific backend message (e.g. "already flagged") if available
-        toast.error((res as any).error ?? 'Failed to report question');
+        toast.error(((res as any).error ?? 'Failed to report question'));
       }
     } catch {
       toast.error('Network error — please try again');

@@ -28,6 +28,8 @@ export function setAccessToken(token: string | null) {
 async function request<T>(
   path: string,
   options: RequestInit = {},
+  retries = 3,
+  timeoutMs = 10000,
 ): Promise<ApiResponse<T>> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -36,18 +38,54 @@ async function request<T>(
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
-  try {
-    const res = await fetch(`${apiBaseUrl}${path}`, { ...options, headers });
-    const data = await res.json();
-    return data as ApiResponse<T>;
-  } catch (err) {
-    return {
-      success: false,
-      error: 'Network error. Please check your connection.',
-      code: 'NETWORK_ERROR',
-      statusCode: 0,
-    };
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await fetch(`${apiBaseUrl}${path}`, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      const data = await res.json();
+      return data as ApiResponse<T>;
+    } catch (err: any) {
+      clearTimeout(timeout);
+
+      const isLastAttempt = attempt === retries;
+
+      if (err?.name === 'AbortError') {
+        if (isLastAttempt) {
+          return {
+            success: false,
+            error: 'Request timed out. Please try again.',
+            code: 'TIMEOUT',
+            statusCode: 0,
+          };
+        }
+      } else if (isLastAttempt) {
+        return {
+          success: false,
+          error: 'Network error. Please check your connection.',
+          code: 'NETWORK_ERROR',
+          statusCode: 0,
+        };
+      }
+
+      // Wait before retrying: 1s, 2s, 3s
+      await new Promise(r => setTimeout(r, attempt * 1000));
+    }
   }
+
+  return {
+    success: false,
+    error: 'Network error. Please check your connection.',
+    code: 'NETWORK_ERROR',
+    statusCode: 0,
+  };
 }
 
 // ── Auth ─────────────────────────────────────────────────────
@@ -83,8 +121,8 @@ export const auth = {
   resetPassword: (accessToken: string, newPassword: string) =>
     request<null>('/api/v1/auth/reset-password', {
       method: 'POST',
-      body: JSON.stringify({ accessToken, newPassword }),  // ← was { otp, newPassword }
-  }),
+      body: JSON.stringify({ accessToken, newPassword }),
+    }),
 };
 
 // ── Questions ────────────────────────────────────────────────
@@ -113,7 +151,7 @@ export const questions = {
     request<Question>(`/api/v1/questions/${id}`),
 
   getSubjects: () =>
-  request<string[]>('/api/v1/questions/subjects'),
+    request<string[]>('/api/v1/questions/subjects'),
 
   getYears: (subject: string, examType: ExamType) =>
     request<number[]>(`/api/v1/questions/years?subject=${subject}&examType=${examType}`),
@@ -137,20 +175,24 @@ export interface StartQuizOptions {
 }
 
 export const quiz = {
+  // Longer timeout for start — fetches 20+ questions
   start: (options: StartQuizOptions) =>
     request<{ session: QuizSession; questions: QuestionForQuiz[] }>('/api/v1/quiz/start', {
       method: 'POST',
       body: JSON.stringify(options),
-    }),
+    }, 3, 15000),
 
+  // Longer timeout for answer submit — critical action, more retries
   submitAnswer: (sessionId: string, questionId: string, selectedOption: string | null, timeSpentSeconds: number) =>
     request<{ isCorrect: boolean; correctAnswer: string }>(`/api/v1/quiz/${sessionId}/answer`, {
       method: 'POST',
       body: JSON.stringify({ questionId, selectedOption, timeSpentSeconds }),
-    }),
+    }, 4, 12000),
 
   complete: (sessionId: string) =>
-    request<QuizResult>(`/api/v1/quiz/${sessionId}/complete`, { method: 'POST' }),
+    request<QuizResult>(`/api/v1/quiz/${sessionId}/complete`, {
+      method: 'POST',
+    }, 3, 15000),
 
   resume: (sessionId: string) =>
     request<{ session: QuizSession; questions: QuestionForQuiz[]; answeredIds: string[] }>(
@@ -167,17 +209,18 @@ export const quiz = {
 // ── AI ───────────────────────────────────────────────────────
 
 export const ai = {
+  // AI explain can take longer — 20s timeout
   explain: (questionId: string, selectedOption: string) =>
     request<AiExplanation>('/api/v1/ai/explain', {
       method: 'POST',
       body: JSON.stringify({ questionId, selectedOption }),
-    }),
+    }, 2, 20000),
 
   chat: (messages: Pick<AiChatMessage, 'role' | 'content'>[], subject: string) =>
     request<{ reply: string }>('/api/v1/ai/chat', {
       method: 'POST',
       body: JSON.stringify({ messages, subject }),
-    }),
+    }, 2, 20000),
 
   getUsage: () =>
     request<{ used: number; limit: number }>('/api/v1/ai/usage'),

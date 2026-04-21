@@ -51,26 +51,16 @@ const withPWA = require('next-pwa')({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: ['@prepwise/types', '@prepwise/api-client', '@prepwise/utils'],
-
   typescript: { ignoreBuildErrors: true },
-
   serverExternalPackages: ['styled-jsx'],
   devIndicators: false,
-
-  // point Turbopack root to the monorepo root (3 levels up from apps/web)
- turbopack: {
-  root: path.resolve(__dirname, '../..'),
-},
-
-outputFileTracingRoot: path.resolve(__dirname, '../..'),
-
+  outputFileTracingRoot: path.resolve(__dirname, '../..'),
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
       { protocol: 'https', hostname: 'prepwise.com.ng' },
     ],
   },
-
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000',
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
