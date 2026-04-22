@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { quiz, ai, questions as questionsApi } from '@prepwise/api-client';
 import type { QuestionForQuiz, QuizSession } from '@prepwise/types';
 import { Spinner } from '@/components/ui';
-import { getOfflineQuestions, shuffleArray } from '@/lib/offlineStorage';
+import { getOfflineQuestions, saveQuestionsOffline, shuffleArray } from '@/lib/offlineStorage';
 
 function countdown(secs: number) {
   const h = Math.floor(secs / 3600);
@@ -137,6 +137,20 @@ function ActiveQuizPage() {
       if (mode === 'TIMED') setTimeLeft(30 * 60);
       if (mode === 'MOCK')  setTimeLeft(180 * 60);
       setLoading(false);
+
+      // ── Silently save questions to IndexedDB for offline use ──
+      // Only for Student+ users. Fire and forget — never blocks the quiz.
+      try {
+        const stored = localStorage.getItem('prepwise-auth');
+        const tier   = stored
+          ? JSON.parse(stored)?.state?.user?.subscriptionTier ?? 'FREE'
+          : 'FREE';
+        if (tier !== 'FREE') {
+          saveQuestionsOffline(subject, examType, res.data.questions).catch(() => {});
+        }
+      } catch {
+        // Silent fail — offline saving is best-effort
+      }
     })();
   }, []);
 
@@ -193,7 +207,7 @@ function ActiveQuizPage() {
     setLoadingAI(true);
     const res = await ai.explain(qId, sel);
     if (res.success) setExplanation(res.data.explanation);
-    else toast.error((res as any).error || 'Failed to get explanation');
+    else toast.error((res as any).error);
     setLoadingAI(false);
   }
 

@@ -33,7 +33,7 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-// ── Save questions for a subject ──────────────────────────────
+// ── Save questions for a subject (merges with existing) ──────
 export async function saveQuestionsOffline(
   subject: string,
   examType: string,
@@ -46,19 +46,25 @@ export async function saveQuestionsOffline(
     const store = tx.objectStore(STORES.questions);
     const meta  = tx.objectStore(STORES.metadata);
 
-    // Save each question with subject/examType attached
+    // Use put() — adds new questions, updates existing ones by id
+    // This merges rather than overwrites so the pool grows each session
     questions.forEach(q => {
       store.put({ ...q, subject, examType });
     });
 
-    // Save download timestamp
-    meta.put({
-      key:         `${subject}:${examType}`,
-      subject,
-      examType,
-      savedAt:     Date.now(),
-      count:       questions.length,
-    });
+    // Get current count to update metadata accurately
+    const countReq = store.index('subjectExam')
+      .count(IDBKeyRange.only([subject, examType]));
+
+    countReq.onsuccess = () => {
+      meta.put({
+        key:     `${subject}:${examType}`,
+        subject,
+        examType,
+        savedAt: Date.now(),
+        count:   countReq.result,
+      });
+    };
 
     tx.oncomplete = () => resolve();
     tx.onerror    = () => reject(tx.error);
