@@ -277,6 +277,55 @@ Use examples that Nigerian students can relate to. Be encouraging.`;
       aiAvailable: !!anthropic,
     };
   },
+
+  async classifyTopic(questionId: string): Promise<string | null> {
+    if (!anthropic) return null;
+ 
+    const question = await questionsRepository.findById(questionId);
+    if (!question) return null;
+ 
+    // Already has a topic — skip
+    if (question.topic && question.topic.trim().length > 0) return question.topic;
+ 
+    try {
+      const prompt = `You are classifying a Nigerian WAEC/NECO ${question.subject} exam question into a topic.
+ 
+Question: ${question.questionText}
+Options: ${Object.entries(question.options).map(([k, v]) => `${k}. ${v}`).join(' | ')}
+ 
+Return ONLY the topic name — 2 to 5 words maximum, no punctuation, no explanation.
+Examples: "Organic Chemistry", "Demand and Supply", "Government Structure", "Quadratic Equations", "Cell Biology"
+ 
+Topic:`;
+ 
+      const message = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001', // Use Haiku — fast and cheap for classification
+        max_tokens: 20,
+        messages: [{ role: 'user', content: prompt }],
+      });
+ 
+      const topic = (message.content[0] as { type: string; text: string }).text
+        .trim()
+        .replace(/^["']|["']$/g, '') // strip any quotes
+        .replace(/\.$/, '');          // strip trailing period
+ 
+      if (topic && topic.length > 0 && topic.length <= 60) {
+        // Save topic to DB so this question is never classified again
+        await supabaseAdmin
+          .from('questions')
+          .update({ topic })
+          .eq('id', questionId);
+ 
+        return topic;
+      }
+ 
+      return null;
+    } catch (err) {
+      // Silent fail — topic classification is best-effort, never block the user
+      console.error('[AI] Topic classification failed for question', questionId, err);
+      return null;
+    }
+  },
 };
 
 // ── Controller + Routes ───────────────────────────────────────
@@ -332,5 +381,29 @@ router.get('/usage', authenticate, async (req: Request, res: Response, next: Nex
     res.json({ success: true, data: result });
   } catch (err) { next(err); }
 });
+
+router.post('/classify-topic', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { questionId } = z.object({
+      questionId: z.string().uuid(),
+    }).parse(req.body);
+ 
+    // Only classify if question has no topic — guard server-side too
+    const question = await questionsRepository.findById(questionId);
+    if (!question) {
+      res.json({ success: true, data: { topic: null } });
+      return;
+    }
+ 
+    if (question.topic && question.topic.trim().length > 0) {
+      res.json({ success: true, data: { topic: question.topic } });
+      return;
+    }
+ 
+    const topic = await aiService.classifyTopic(questionId);
+    res.json({ success: true, data: { topic } });
+  } catch (err) { next(err); }
+});
+
 
 export { router as aiRoutes };

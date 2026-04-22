@@ -86,11 +86,14 @@ function ActiveQuizPage() {
   const [flaggedIds, setFlaggedIds]         = useState<Set<string>>(new Set());
   const [submittingFlag, setSubmittingFlag] = useState(false);
 
+  // Topic state — tracks topics assigned this session (before next quiz load)
+  const [topicOverrides, setTopicOverrides] = useState<Record<string, string>>({});
+
   // Start quiz
   useEffect(() => {
     (async () => {
       const res = await quiz.start({ mode, subject, examType, year, questionCount: count, timeLimitMinutes: mode === 'TIMED' ? 30 : undefined });
-      if (!res.success) { toast.error((res as any).error || 'Failed to start quiz'); router.push('/quiz'); return; }
+      if (!res.success) { toast.error((res as any).error); router.push('/quiz'); return; }
       setSession(res.data.session);
       setQuestions(res.data.questions);
       if (mode === 'TIMED') setTimeLeft(30 * 60);
@@ -126,13 +129,22 @@ function ActiveQuizPage() {
 
     if (isCorrect) toast.success('Correct! 🎉');
     if (mode === 'PRACTICE' && !isCorrect) fetchExplanation(q.id, option);
+
+    // Silently classify topic if question has none — fire and forget, never blocks user
+    if (!q.topic && !topicOverrides[q.id]) {
+      ai.classifyTopic(q.id).then(res => {
+        if (res.success && res.data.topic) {
+          setTopicOverrides(prev => ({ ...prev, [q.id]: res.data.topic! }));
+        }
+      }).catch(() => { /* silent fail */ });
+    }
   }
 
   async function fetchExplanation(qId: string, sel: string) {
     setLoadingAI(true);
     const res = await ai.explain(qId, sel);
     if (res.success) setExplanation(res.data.explanation);
-    else toast.error((res as any).error ?? 'Failed to get explanation');
+    else toast.error((res as any).error ?? 'Failed to fetch explanation');
     setLoadingAI(false);
   }
 
@@ -144,11 +156,11 @@ function ActiveQuizPage() {
       if (res.success) {
         setFlaggedIds(prev => new Set(prev).add(q.id));
         toast.success('Question reported. Thanks for the feedback!');
-      } else if (!res.success && ((res as any).code === 'ALREADY_FLAGGED' || (res as any).error?.toLowerCase().includes('already'))) {
+      } else if ((res as any).code === 'ALREADY_FLAGGED' || (res as any).error?.toLowerCase().includes('already')) {
         setFlaggedIds(prev => new Set(prev).add(q.id));
-        toast.info('Already reported this question.');
+        toast.info('You have already reported this question.');
       } else {
-        toast.error(((res as any).error ?? 'Failed to report question'));
+        toast.error((res as any).error ?? 'Failed to report question');
       }
     } catch {
       toast.error('Network error — please try again');
@@ -227,7 +239,11 @@ function ActiveQuizPage() {
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="flex items-center gap-2 flex-wrap">
               {q.year  && <span className="bg-blue-50 text-blue-700 text-xs font-bold px-2 py-1 rounded">{q.year}</span>}
-              {q.topic && <span className="bg-gray-100 text-gray-500 text-xs font-medium px-2 py-1 rounded">{q.topic}</span>}
+              {(q.topic || topicOverrides[q.id]) && (
+                <span className="bg-gray-100 text-gray-500 text-xs font-medium px-2 py-1 rounded">
+                  {topicOverrides[q.id] ?? q.topic}
+                </span>
+              )}
             </div>
             {/* Flag button */}
             <button

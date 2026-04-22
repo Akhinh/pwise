@@ -222,6 +222,12 @@ export const ai = {
       body: JSON.stringify({ messages, subject }),
     }, 2, 20000),
 
+  classifyTopic: (questionId: string) =>
+    request<{ topic: string | null }>('/api/v1/ai/classify-topic', {
+      method: 'POST',
+      body: JSON.stringify({ questionId }),
+    }),
+
   getUsage: () =>
     request<{ used: number; limit: number }>('/api/v1/ai/usage'),
 };
