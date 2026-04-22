@@ -1,35 +1,55 @@
-import { useEffect, useState } from 'react';
-import { useAuthStore } from '@/store/auth.store';
+'use client';
+// hooks/useOfflineMode.ts
+
+import { useState, useEffect } from 'react';
+import { getOfflineMetadata } from '@/lib/offlineStorage';
+
+export interface OfflineSubjectMeta {
+  key: string;
+  subject: string;
+  examType: string;
+  savedAt: number;
+  count: number;
+}
 
 export function useOfflineMode() {
-  const { user } = useAuthStore();
-  const [isOnline, setIsOnline] = useState(true);
-  const [isOfflineEnabled, setIsOfflineEnabled] = useState(false);
-
-  const tier = user?.subscriptionTier ?? 'FREE';
-  const canUseOffline = ['STUDENT', 'PREMIUM', 'SCHOOL'].includes(tier);
+  const [isOnline, setIsOnline]           = useState(true);
+  const [downloadedSubjects, setDownloadedSubjects] = useState<OfflineSubjectMeta[]>([]);
 
   useEffect(() => {
+    // Set initial state
     setIsOnline(navigator.onLine);
-    const handleOnline  = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
 
-    window.addEventListener('online',  handleOnline);
-    window.addEventListener('offline', handleOffline);
+    const goOnline  = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+
+    window.addEventListener('online',  goOnline);
+    window.addEventListener('offline', goOffline);
+
     return () => {
-      window.removeEventListener('online',  handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online',  goOnline);
+      window.removeEventListener('offline', goOffline);
     };
   }, []);
 
+  // Load downloaded subjects metadata
   useEffect(() => {
-    // Only register service worker for paid tiers
-    if (canUseOffline && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then(() => {
-        setIsOfflineEnabled(true);
-      });
-    }
-  }, [canUseOffline]);
+    getOfflineMetadata()
+      .then(setDownloadedSubjects)
+      .catch(() => setDownloadedSubjects([]));
+  }, [isOnline]); // refresh when coming back online
 
-  return { isOnline, isOfflineEnabled, canUseOffline };
+  const hasOfflineData = downloadedSubjects.length > 0;
+
+  const isSubjectAvailableOffline = (subject: string, examType: string) =>
+    downloadedSubjects.some(m => m.subject === subject && m.examType === examType);
+
+  return {
+    isOnline,
+    isOffline: !isOnline,
+    hasOfflineData,
+    downloadedSubjects,
+    isSubjectAvailableOffline,
+    refreshMetadata: () => getOfflineMetadata().then(setDownloadedSubjects),
+  };
 }

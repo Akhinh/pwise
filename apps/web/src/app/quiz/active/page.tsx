@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { quiz, ai, questions as questionsApi } from '@prepwise/api-client';
 import type { QuestionForQuiz, QuizSession } from '@prepwise/types';
 import { Spinner } from '@/components/ui';
+import { getOfflineQuestions, shuffleArray } from '@/lib/offlineStorage';
 
 function countdown(secs: number) {
   const h = Math.floor(secs / 3600);
@@ -80,6 +81,7 @@ function ActiveQuizPage() {
   const [timeLeft, setTimeLeft]       = useState<number | null>(null);
   const [loading, setLoading]         = useState(true);
   const [qStart, setQStart]           = useState(Date.now());
+  const [isOffline, setIsOffline]     = useState(false);
 
   // Flag state
   const [showFlagModal, setShowFlagModal]   = useState(false);
@@ -89,11 +91,47 @@ function ActiveQuizPage() {
   // Topic state — tracks topics assigned this session (before next quiz load)
   const [topicOverrides, setTopicOverrides] = useState<Record<string, string>>({});
 
-  // Start quiz
+  // Start quiz — falls back to IndexedDB when offline
   useEffect(() => {
     (async () => {
+      const offline = !navigator.onLine;
+      setIsOffline(offline);
+
+      if (offline) {
+        // ── Tier check — FREE users cannot use offline mode ───
+        // Read tier from localStorage where auth stores it
+        const stored = localStorage.getItem('user');
+        const tier   = stored ? JSON.parse(stored)?.subscriptionTier ?? 'FREE' : 'FREE';
+        if (tier === 'FREE') {
+          toast.error('Offline mode requires a Student plan or above.');
+          router.push('/pricing');
+          return;
+        }
+
+        // ── Offline: load from IndexedDB ──────────────────────
+        const cached = await getOfflineQuestions(subject, examType);
+        if (cached.length === 0) {
+          toast.error('No offline questions for this subject. Connect to the internet first.');
+          router.push('/quiz');
+          return;
+        }
+        const picked = shuffleArray(cached).slice(0, Math.min(count, cached.length));
+        setSession({
+          id: 'offline', userId: 'offline', mode, subject, examType,
+          questionIds: picked.map((q: any) => q.id),
+          startedAt: new Date().toISOString(),
+          completedAt: null, totalScore: null, isAbandoned: false,
+        });
+        setQuestions(picked as QuestionForQuiz[]);
+        if (mode === 'TIMED') setTimeLeft(30 * 60);
+        setLoading(false);
+        toast.info('📡 Offline mode — using saved questions');
+        return;
+      }
+
+      // ── Online: normal API call ────────────────────────────
       const res = await quiz.start({ mode, subject, examType, year, questionCount: count, timeLimitMinutes: mode === 'TIMED' ? 30 : undefined });
-      if (!res.success) { toast.error((res as any).error); router.push('/quiz'); return; }
+      if (!res.success) { toast.error((res as any).error || 'Failed to start quiz'); router.push('/quiz'); return; }
       setSession(res.data.session);
       setQuestions(res.data.questions);
       if (mode === 'TIMED') setTimeLeft(30 * 60);
@@ -119,6 +157,17 @@ function ActiveQuizPage() {
     const timeTaken = Math.floor((Date.now() - qStart) / 1000);
     setSelected(option);
 
+    if (isOffline) {
+      // ── Offline: evaluate answer locally using stored correctAnswer ──
+      const correctAnswer = (q as any).correctAnswer as string;
+      const isCorrect     = option === correctAnswer;
+      setRevealed(true);
+      setCorrectAns(correctAnswer);
+      setAnswered(p => ({ ...p, [q.id]: { selected: option, correct: isCorrect } }));
+      if (isCorrect) toast.success('Correct! 🎉');
+      return;
+    }
+
     const res = await quiz.submitAnswer(session.id, q.id, option, timeTaken);
     if (!res.success) { toast.error('Failed to submit'); return; }
 
@@ -130,13 +179,13 @@ function ActiveQuizPage() {
     if (isCorrect) toast.success('Correct! 🎉');
     if (mode === 'PRACTICE' && !isCorrect) fetchExplanation(q.id, option);
 
-    // Silently classify topic if question has none — fire and forget, never blocks user
+    // Silently classify topic if question has none — fire and forget
     if (!q.topic && !topicOverrides[q.id]) {
       ai.classifyTopic(q.id).then(res => {
         if (res.success && res.data.topic) {
           setTopicOverrides(prev => ({ ...prev, [q.id]: res.data.topic! }));
         }
-      }).catch(() => { /* silent fail */ });
+      }).catch(() => {});
     }
   }
 
@@ -144,7 +193,7 @@ function ActiveQuizPage() {
     setLoadingAI(true);
     const res = await ai.explain(qId, sel);
     if (res.success) setExplanation(res.data.explanation);
-    else toast.error((res as any).error ?? 'Failed to fetch explanation');
+    else toast.error((res as any).error || 'Failed to get explanation');
     setLoadingAI(false);
   }
 
@@ -182,10 +231,18 @@ function ActiveQuizPage() {
 
   const handleComplete = useCallback(async () => {
     if (!session) return;
+    if (isOffline) {
+      // Offline: show local results summary
+      const correct = Object.values(answered).filter(a => a.correct).length;
+      const total   = questions.length;
+      const score   = Math.round((correct / total) * 100);
+      router.push(`/quiz/results?offline=1&score=${score}&correct=${correct}&total=${total}&subject=${encodeURIComponent(subject)}`);
+      return;
+    }
     const res = await quiz.complete(session.id);
     if (res.success) router.push(`/quiz/results?sessionId=${session.id}`);
     else toast.error('Failed to complete');
-  }, [session, router]);
+  }, [session, router, isOffline, answered, questions, subject]);
 
   if (loading) return (
     <div className="min-h-screen bg-[#F0F4F8] flex items-center justify-center">
@@ -208,6 +265,13 @@ function ActiveQuizPage() {
           onClose={() => setShowFlagModal(false)}
           onSubmit={handleFlagSubmit}
         />
+      )}
+
+      {/* Offline indicator */}
+      {isOffline && (
+        <div className="bg-amber-500 text-[#0D2137] text-xs font-bold text-center py-1.5 px-4">
+          📡 Offline mode — answers won&apos;t be saved to your progress
+        </div>
       )}
 
       {/* Top bar */}

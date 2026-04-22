@@ -7,6 +7,7 @@ import { auth } from '@prepwise/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { TierBadge, Button } from '@/components/ui';
+import { OfflineManager } from '@/components/OfflineDownload';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
 
   const initials = user?.displayName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) ?? 'PW';
+  const isFreeTier = !user?.subscriptionTier || user.subscriptionTier === 'FREE';
 
   async function handleSave() {
     if (!displayName.trim() || displayName === user?.displayName) return;
@@ -22,7 +24,6 @@ export default function ProfilePage() {
     try {
       const res = await auth.updateProfile({ displayName });
       if (!res.success) { toast.error('Failed to update profile'); return; }
-      // Update local store
       if (user) {
         const updatedUser = { ...user, displayName };
         const stored = JSON.parse(localStorage.getItem('prepwise-auth') ?? '{}');
@@ -126,15 +127,33 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Offline Storage — Student+ only */}
+        {!isFreeTier && (
+          <div className="bg-white border border-gray-200 rounded-[14px] p-5 mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xs font-bold text-[#0D2137] uppercase tracking-wide">
+                  Offline Storage
+                </h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Subjects saved to your device for offline practice
+                </p>
+              </div>
+              <span className="text-lg">📥</span>
+            </div>
+            <OfflineManager />
+          </div>
+        )}
+
         {/* Stats summary */}
         <div className="bg-white border border-gray-200 rounded-[14px] p-5 mb-4">
           <h2 className="text-xs font-bold text-[#0D2137] uppercase tracking-wide mb-4">Account Stats</h2>
           <div className="grid grid-cols-2 gap-4">
             {[
-              { label: 'Day Streak', value: `${user?.streakCount ?? 0} 🔥` },
-              { label: 'Member since', value: memberSince || '—' },
+              { label: 'Day Streak',     value: `${user?.streakCount ?? 0} 🔥` },
+              { label: 'Member since',   value: memberSince || '—' },
               { label: 'Account status', value: 'Active ✓' },
-              { label: 'Admin access', value: user?.isAdmin ? 'Yes' : 'No' },
+              { label: 'Admin access',   value: user?.isAdmin ? 'Yes' : 'No' },
             ].map(({ label, value }) => (
               <div key={label}>
                 <p className="text-xs text-gray-400 font-medium">{label}</p>
