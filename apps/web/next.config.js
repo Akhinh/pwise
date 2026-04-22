@@ -5,6 +5,8 @@ const withPWA = require('next-pwa')({
   disable: process.env.NODE_ENV === 'development',
   register: true,
   skipWaiting: true,
+  reloadOnOnline: true,      // ← add this
+  cacheOnFrontEndNav: false,
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/.*\/api\/v1\/questions/,
