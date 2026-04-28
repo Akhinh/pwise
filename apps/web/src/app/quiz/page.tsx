@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { questions } from '@prepwise/api-client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/store/auth.store';
+import { getOfflineMetadata } from '@/lib/offlineStorage';
 
 const SUBJECT_ICONS: Record<string, string> = {
   'Mathematics': '📐', 'English Language': '📖', 'Biology': '🔬',
@@ -34,28 +35,57 @@ function QuizSetupPage() {
   const params = useSearchParams();
   const { user } = useAuthStore();
 
-  const [subject, setSubject]   = useState(params.get('subject') ?? '');
-  const [examType, setExamType] = useState<'WAEC' | 'NECO'>('WAEC');
-  const [mode, setMode]         = useState('TIMED');
-  const [year, setYear]         = useState('');
-  const [count, setCount]       = useState(20);
+  const [subject, setSubject]             = useState(params.get('subject') ?? '');
+  const [examType, setExamType]           = useState<'WAEC' | 'NECO'>('WAEC');
+  const [mode, setMode]                   = useState('TIMED');
+  const [year, setYear]                   = useState('');
+  const [count, setCount]                 = useState(20);
+  const [isOffline, setIsOffline]         = useState(false);
+  const [offlineSubjects, setOfflineSubjects] = useState<string[]>([]);
+
+  // Detect online/offline
+  useEffect(() => {
+    const update = () => setIsOffline(!navigator.onLine);
+    update();
+    window.addEventListener('online',  update);
+    window.addEventListener('offline', update);
+    return () => {
+      window.removeEventListener('online',  update);
+      window.removeEventListener('offline', update);
+    };
+  }, []);
+
+  // Load which subjects are saved for offline for current examType
+  useEffect(() => {
+    getOfflineMetadata()
+      .then(meta => setOfflineSubjects(
+        meta.filter(m => m.examType === examType).map(m => m.subject)
+      ))
+      .catch(() => {});
+  }, [examType]);
 
   const { data: subjectsRes } = useQuery({
     queryKey: ['subjects'],
-    queryFn: () => questions.getSubjects(),
+    queryFn:  () => questions.getSubjects(),
+    staleTime: 1000 * 60 * 60 * 24,      // serve cached for 24h so it works offline
+    gcTime:    1000 * 60 * 60 * 24 * 7,  // keep in memory 7 days
   });
 
   const { data: yearsRes } = useQuery({
     queryKey: ['years', subject, examType],
-    queryFn: () => questions.getYears(subject, examType),
-    enabled: !!subject,
+    queryFn:  () => questions.getYears(subject, examType),
+    enabled:  !!subject && !isOffline,
+    staleTime: 1000 * 60 * 60 * 24,
   });
 
-  const subjectList = subjectsRes?.success ? subjectsRes.data : [];
-  const yearList    = yearsRes?.success    ? yearsRes.data    : [];
+  const subjectList = subjectsRes?.success ? subjectsRes.data as string[] : [];
+  const yearList    = yearsRes?.success    ? yearsRes.data  as number[]   : [];
 
   const tierRank: Record<string, number> = { FREE: 0, STUDENT: 1, PREMIUM: 2, SCHOOL: 3 };
   const userTier = user?.subscriptionTier ?? 'FREE';
+
+  // Offline: only show subjects that have saved questions
+  const displaySubjects = isOffline ? offlineSubjects : subjectList;
 
   function canUseMode(modeTier: string) {
     return tierRank[userTier] >= tierRank[modeTier];
@@ -76,27 +106,51 @@ function QuizSetupPage() {
         <h1 className="text-2xl font-black text-[#0D2137] mb-1" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
           Start a Quiz
         </h1>
-        <p className="text-sm text-gray-400 mb-8">Configure your practice session</p>
+        <p className="text-sm text-gray-400 mb-6">Configure your practice session</p>
+
+        {/* Offline banner */}
+        {isOffline && (
+          <div className="bg-amber-50 border border-amber-200 rounded-[14px] px-5 py-4 mb-5 flex items-start gap-3">
+            <span className="text-xl flex-shrink-0">📡</span>
+            <div>
+              <p className="text-sm font-bold text-amber-800">You&apos;re offline</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                {offlineSubjects.length > 0
+                  ? `${offlineSubjects.length} subject${offlineSubjects.length > 1 ? 's' : ''} available below. Select one to start practising.`
+                  : 'No subjects saved yet. Connect to the internet and complete a quiz first to enable offline practice.'}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Step 1 — Subject */}
         <div className="bg-white border border-gray-200 rounded-[14px] p-5 mb-4">
-          <h2 className="text-xs font-bold text-[#0D2137] uppercase tracking-wide mb-4">1. Choose Subject</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-            {(subjectList as string[]).map((s: string) => (
-              <button
-                key={s}
-                onClick={() => { setSubject(s); setYear(''); }}
-                className={`flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all text-xs font-semibold ${
-                  subject === s
-                    ? 'border-[#0D2137] bg-[#0D2137] text-white'
-                    : 'border-gray-200 text-[#0D2137] hover:border-amber-300 hover:bg-amber-50'
-                }`}
-              >
-                <span className="text-sm">{SUBJECT_ICONS[s] ?? '📝'}</span>
-                <span className="leading-tight">{s}</span>
-              </button>
-            ))}
-          </div>
+          <h2 className="text-xs font-bold text-[#0D2137] uppercase tracking-wide mb-4">
+            {isOffline ? '1. Available Offline' : '1. Choose Subject'}
+          </h2>
+
+          {displaySubjects.length === 0 ? (
+            <div className="text-center py-8 text-gray-400 text-sm">
+              {isOffline ? 'No subjects saved for offline use yet.' : 'Loading subjects...'}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+              {displaySubjects.map((s: string) => (
+                <button
+                  key={s}
+                  onClick={() => { setSubject(s); setYear(''); }}
+                  className={`flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all text-xs font-semibold ${
+                    subject === s
+                      ? 'border-[#0D2137] bg-[#0D2137] text-white'
+                      : 'border-gray-200 text-[#0D2137] hover:border-amber-300 hover:bg-amber-50'
+                  }`}
+                >
+                  <span className="text-sm flex-shrink-0">{SUBJECT_ICONS[s] ?? '📝'}</span>
+                  <span className="leading-tight">{s}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Step 2 — Exam type + year + count */}
@@ -109,7 +163,7 @@ function QuizSetupPage() {
                 {(['WAEC', 'NECO'] as const).map(t => (
                   <button
                     key={t}
-                    onClick={() => setExamType(t)}
+                    onClick={() => { setExamType(t); setSubject(''); }}
                     className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${
                       examType === t
                         ? 'bg-[#0D2137] text-white border-[#0D2137]'
@@ -122,15 +176,17 @@ function QuizSetupPage() {
               </div>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Year (optional)</label>
+              <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
+                {isOffline ? 'Year (not available offline)' : 'Year (optional)'}
+              </label>
               <select
                 value={year}
                 onChange={e => setYear(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-xs text-[#0D2137] outline-none focus:border-blue-400"
-                disabled={!subject}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-xs text-[#0D2137] outline-none focus:border-blue-400 disabled:opacity-40"
+                disabled={!subject || isOffline}
               >
                 <option value="">All years</option>
-                {(yearList as number[]).map((y: number) => (
+                {yearList.map((y: number) => (
                   <option key={y} value={String(y)}>{y}</option>
                 ))}
               </select>
@@ -153,36 +209,43 @@ function QuizSetupPage() {
         <div className="bg-white border border-gray-200 rounded-[14px] p-5 mb-6">
           <h2 className="text-xs font-bold text-[#0D2137] uppercase tracking-wide mb-4">3. Choose Mode</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {MODES.map(m => {
-              const locked = !canUseMode(m.tier);
-              return (
-                <button
-                  key={m.id}
-                  onClick={() => !locked && setMode(m.id)}
-                  className={`flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all ${
-                    mode === m.id && !locked
-                      ? 'border-[#0D2137] bg-[#0D2137] text-white'
-                      : locked
-                        ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
-                        : 'border-gray-200 text-[#0D2137] hover:border-amber-300'
-                  }`}
-                >
-                  <span className="text-lg flex-shrink-0">{m.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold">{m.label}</span>
-                      {locked && (
-                        <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">
-                          {m.tier}
-                        </span>
-                      )}
+            {MODES
+              .filter(m => !isOffline || ['PRACTICE', 'TIMED'].includes(m.id))
+              .map(m => {
+                const locked = !canUseMode(m.tier);
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => !locked && setMode(m.id)}
+                    className={`flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all ${
+                      mode === m.id && !locked
+                        ? 'border-[#0D2137] bg-[#0D2137] text-white'
+                        : locked
+                          ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
+                          : 'border-gray-200 text-[#0D2137] hover:border-amber-300'
+                    }`}
+                  >
+                    <span className="text-lg flex-shrink-0">{m.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold">{m.label}</span>
+                        {locked && (
+                          <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">
+                            {m.tier}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] mt-0.5 opacity-70">{m.desc}</p>
                     </div>
-                    <p className="text-[11px] mt-0.5 opacity-70">{m.desc}</p>
-                  </div>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })}
           </div>
+          {isOffline && (
+            <p className="text-xs text-gray-400 mt-3">
+              💡 Mock Exam, Topic Drill and Weak Areas require an internet connection.
+            </p>
+          )}
         </div>
 
         {/* Start button */}
@@ -191,7 +254,11 @@ function QuizSetupPage() {
           disabled={!subject}
           className="w-full bg-[#F59E0B] text-[#0D2137] py-4 rounded-xl font-black text-base hover:bg-[#FCD34D] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {subject ? `Start ${count} Questions →` : 'Select a subject to continue'}
+          {subject
+            ? `Start ${count} Questions${isOffline ? ' (Offline)' : ''} →`
+            : isOffline
+              ? 'Select a saved subject above'
+              : 'Select a subject to continue'}
         </button>
       </div>
     </DashboardLayout>

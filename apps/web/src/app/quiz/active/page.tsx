@@ -88,7 +88,7 @@ function ActiveQuizPage() {
   const [flaggedIds, setFlaggedIds]         = useState<Set<string>>(new Set());
   const [submittingFlag, setSubmittingFlag] = useState(false);
 
-  // Topic state — tracks topics assigned this session (before next quiz load)
+  // Topic state
   const [topicOverrides, setTopicOverrides] = useState<Record<string, string>>({});
 
   // Start quiz — falls back to IndexedDB when offline
@@ -98,20 +98,12 @@ function ActiveQuizPage() {
       setIsOffline(offline);
 
       if (offline) {
-        // ── Tier check — FREE users cannot use offline mode ───
-        // Read tier from localStorage where auth stores it
-        const stored = localStorage.getItem('user');
-        const tier   = stored ? JSON.parse(stored)?.subscriptionTier ?? 'FREE' : 'FREE';
-        if (tier === 'FREE') {
-          toast.error('Offline mode requires a Student plan or above.');
-          router.push('/pricing');
-          return;
-        }
-
         // ── Offline: load from IndexedDB ──────────────────────
+        // If questions exist here, user was Student+ when they saved them
+        // (FREE users never trigger saveQuestionsOffline)
         const cached = await getOfflineQuestions(subject, examType);
         if (cached.length === 0) {
-          toast.error('No offline questions for this subject. Connect to the internet first.');
+          toast.error('No offline questions for this subject. Practise it online first.');
           router.push('/quiz');
           return;
         }
@@ -138,8 +130,8 @@ function ActiveQuizPage() {
       if (mode === 'MOCK')  setTimeLeft(180 * 60);
       setLoading(false);
 
-      // ── Silently save questions to IndexedDB for offline use ──
-      // Only for Student+ users. Fire and forget — never blocks the quiz.
+      // ── Silently save to IndexedDB for offline use ─────────
+      // Only for Student+ — FREE users are excluded here
       try {
         const stored = localStorage.getItem('prepwise-auth');
         const tier   = stored
@@ -172,7 +164,7 @@ function ActiveQuizPage() {
     setSelected(option);
 
     if (isOffline) {
-      // ── Offline: evaluate answer locally using stored correctAnswer ──
+      // ── Offline: evaluate locally using stored correctAnswer ──
       const correctAnswer = (q as any).correctAnswer as string;
       const isCorrect     = option === correctAnswer;
       setRevealed(true);
@@ -193,7 +185,7 @@ function ActiveQuizPage() {
     if (isCorrect) toast.success('Correct! 🎉');
     if (mode === 'PRACTICE' && !isCorrect) fetchExplanation(q.id, option);
 
-    // Silently classify topic if question has none — fire and forget
+    // Silently classify topic if question has none
     if (!q.topic && !topicOverrides[q.id]) {
       ai.classifyTopic(q.id).then(res => {
         if (res.success && res.data.topic) {
@@ -246,7 +238,6 @@ function ActiveQuizPage() {
   const handleComplete = useCallback(async () => {
     if (!session) return;
     if (isOffline) {
-      // Offline: show local results summary
       const correct = Object.values(answered).filter(a => a.correct).length;
       const total   = questions.length;
       const score   = Math.round((correct / total) * 100);
@@ -266,14 +257,13 @@ function ActiveQuizPage() {
 
   if (!q) return null;
 
-  const progress       = Math.round(((currentIdx + 1) / questions.length) * 100);
-  const timerWarning   = timeLeft !== null && timeLeft < 300;
-  const isFlagged      = flaggedIds.has(q.id);
+  const progress     = Math.round(((currentIdx + 1) / questions.length) * 100);
+  const timerWarning = timeLeft !== null && timeLeft < 300;
+  const isFlagged    = flaggedIds.has(q.id);
 
   return (
     <div className="min-h-screen bg-[#F0F4F8]" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
 
-      {/* Flag modal */}
       {showFlagModal && (
         <FlagModal
           onClose={() => setShowFlagModal(false)}
@@ -323,22 +313,24 @@ function ActiveQuizPage() {
                 </span>
               )}
             </div>
-            {/* Flag button */}
-            <button
-              onClick={() => !isFlagged && setShowFlagModal(true)}
-              disabled={submittingFlag || isFlagged}
-              title={isFlagged ? 'Already reported' : 'Report an issue with this question'}
-              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors flex-shrink-0 ${
-                isFlagged
-                  ? 'border-orange-200 bg-orange-50 text-orange-500 cursor-default'
-                  : 'border-gray-200 bg-white text-gray-400 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-500 cursor-pointer'
-              }`}
-            >
-              <svg viewBox="0 0 16 16" fill={isFlagged ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" className="w-3.5 h-3.5">
-                <path d="M2 2v13M2 2l8 2-8 4" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              {isFlagged ? 'Reported' : 'Report'}
-            </button>
+            {/* Flag button — hidden offline since it needs internet */}
+            {!isOffline && (
+              <button
+                onClick={() => !isFlagged && setShowFlagModal(true)}
+                disabled={submittingFlag || isFlagged}
+                title={isFlagged ? 'Already reported' : 'Report an issue with this question'}
+                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors flex-shrink-0 ${
+                  isFlagged
+                    ? 'border-orange-200 bg-orange-50 text-orange-500 cursor-default'
+                    : 'border-gray-200 bg-white text-gray-400 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-500 cursor-pointer'
+                }`}
+              >
+                <svg viewBox="0 0 16 16" fill={isFlagged ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" className="w-3.5 h-3.5">
+                  <path d="M2 2v13M2 2l8 2-8 4" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {isFlagged ? 'Reported' : 'Report'}
+              </button>
+            )}
           </div>
 
           {(q as any).questionImageUrl && (
@@ -375,7 +367,8 @@ function ActiveQuizPage() {
         {/* Post-answer actions */}
         {revealed && (
           <div className="space-y-4">
-            {selected !== correctAns && (
+            {/* AI explanation — only online and when wrong */}
+            {!isOffline && selected !== correctAns && (
               <div>
                 <button
                   onClick={() => !explanation && fetchExplanation(q.id, selected!)}
