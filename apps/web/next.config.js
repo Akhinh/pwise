@@ -7,6 +7,7 @@ const withPWA = require('next-pwa')({
   skipWaiting: true,
   reloadOnOnline: true,     
   cacheOnFrontEndNav: false,
+  fallbacks: false,
   navigationFallback: '/quiz/active',  
   navigationFallbackAllowlist: [/^\/quiz/], 
   runtimeCaching: [
