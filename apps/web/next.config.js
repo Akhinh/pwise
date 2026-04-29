@@ -8,8 +8,8 @@ const withPWA = require('next-pwa')({
   reloadOnOnline: true,     
   cacheOnFrontEndNav: false,
   fallbacks: false,
-  navigationFallback: '/quiz/active',  
-  navigationFallbackAllowlist: [/^\/quiz/], 
+  navigateFallback: '/quiz/active',  
+  navigateFallbackAllowlist: [/^\/quiz/], 
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/.*\/api\/v1\/questions/,
