@@ -5,11 +5,11 @@ const withPWA = require('next-pwa')({
   disable: process.env.NODE_ENV === 'development',
   register: true,
   skipWaiting: true,
-  reloadOnOnline: true,     
+  reloadOnOnline: true,
   cacheOnFrontEndNav: true,
-  fallbacks: false,
-  navigateFallback: '/quiz/active',  
-  navigateFallbackAllowlist: [/^\/quiz/], 
+  fallbacks: {
+    document: '/offline',
+  },
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/.*\/api\/v1\/questions/,
