@@ -1,9 +1,11 @@
+'use client';
+
 export default function OfflinePage() {
   return (
     <div className="min-h-screen bg-[#0D2137] flex flex-col items-center justify-center text-white p-6 text-center">
       <div className="text-6xl mb-6">📡</div>
       <h1 className="text-2xl font-black mb-2" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-        You're offline
+        You&apos;re offline
       </h1>
       <p className="text-white/60 text-sm mb-8 max-w-xs">
         To practise offline, open the app while connected to the internet first.
