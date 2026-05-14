@@ -22,6 +22,7 @@ import { aiRoutes } from './modules/ai/ai.module';
 import { progressRoutes, leaderboardRoutes } from './modules/progress/progress.module';
 import { paymentsRoutes } from './modules/payments/payments.module';
 import rateLimit from 'express-rate-limit';
+import { theoryQuizRoutes } from './modules/theory-quiz/theory-quiz.module';
 
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -77,6 +78,7 @@ app.use(`${v1}/progress`,      progressRoutes);
 app.use(`${v1}/leaderboard`,   leaderboardRoutes);
 app.use(`${v1}/subscriptions`, paymentsRoutes);
 app.use(`${v1}/webhooks`,      paymentsRoutes);
+app.use('/api/v1/theory-quiz', theoryQuizRoutes);
 
 // ── 404 & Error Handling ──────────────────────────────────────
 app.use(notFound);
