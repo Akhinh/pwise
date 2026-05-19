@@ -25,7 +25,7 @@ router.post('/start', authenticate, requireTier('PREMIUM'), async (req: Request,
     // Fetch all theory questions for this subject/year
     const { data: questions, error } = await supabaseAdmin
       .from('theory_questions')
-      .select('id, subject, exam_type, year, question_number, question_text, sub_questions, question_image_url, topic')
+      .select('id, subject, exam_type, year, question_number, question_text, sub_questions, answer, question_image_url, topic')
       .eq('subject', subject)
       .eq('exam_type', examType)
       .eq('year', year)
@@ -67,6 +67,7 @@ router.post('/start', authenticate, requireTier('PREMIUM'), async (req: Request,
       subQuestions:    q.sub_questions ?? [],
       questionImageUrl: q.question_image_url ?? null,
       topic:           q.topic ?? null,
+      answer:          q.answer ?? null, // included for self-marking
     }));
 
     res.status(201).json({
