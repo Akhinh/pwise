@@ -113,7 +113,7 @@ function MockExamPage() {
     if (!q) return;
     setSubmittingFlag(true);
     try {
-      const res = await apiPost(`/api/v1/questions/${q.id}/flag`, { reason });
+      const res = await apiPost(`/api/v1/theory-quiz/${sessionId}/flag`, { questionId: q.id, reason });
       if (res.success) { setFlaggedIds(p=>new Set(p).add(q.id)); toast.success('Question reported. Thanks!'); }
       else if (res.error?.toLowerCase().includes('already')) { setFlaggedIds(p=>new Set(p).add(q.id)); toast.info('Already reported.'); }
       else toast.error(res.error ?? 'Failed to report');

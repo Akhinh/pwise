@@ -24,7 +24,7 @@ function MockResultsPage() {
 
   useEffect(() => {
     if (!sessionId) return;
-    fetch(`${API_URL}/api/v1/theory-quiz/${sessionId}/answers`, {
+    fetch(`${API_URL}/api/v1/theory-quiz/${sessionId}/review`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     })
       .then(r => r.json())
