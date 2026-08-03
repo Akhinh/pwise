@@ -1,8 +1,7 @@
 # PrepWise 🎓
 
 > AI-powered WAEC & NECO exam preparation platform for Nigerian students.
-# Install ngrok, then run:
-ngrok http 4000 (this is for testing phase: used in webhook(i.e paystack))
+# Paystack for payment
 
 ## Stack
 | Layer | Technology |
@@ -13,7 +12,7 @@ ngrok http 4000 (this is for testing phase: used in webhook(i.e paystack))
 | Database | PostgreSQL via Supabase |
 | Auth | Supabase Auth + JWT |
 | Cache | Redis (Upstash) |
-| AI | Claude API (Anthropic) |
+| AI | Claude API (Anthropic) + Gemini(Api)|
 | Payments | Paystack |
 | Hosting | Vercel (web) + Railway (backend) |
 
@@ -70,12 +69,12 @@ npm run dev:mobile     # Mobile (Expo)
 ## Development Phases
 | Phase | Status |
 |---|---|
-| Phase 1: Foundation | 🚧 In Progress |
-| Phase 2: Data Pipeline | ⏳ Pending |
-| Phase 3: Backend API | ⏳ Pending |
-| Phase 4a: Web App | ⏳ Pending |
+| Phase 1: Foundation | Done |
+| Phase 2: Data Pipeline | Done |
+| Phase 3: Backend API | Done |
+| Phase 4a: Web App | Done |
 | Phase 4b: Mobile App | ⏳ Pending |
-| Phase 5: Launch | ⏳ Pending |
+| Phase 5: Launch | Done |
 
 ## Docs
 - [Software Requirements Document](./docs/PrepWise_SRD_v1.0.md)
@@ -83,4 +82,4 @@ npm run dev:mobile     # Mobile (Expo)
 - [Database Schema](./docs/database/)
 
 ---
-Built with ❤️ for Nigerian students.
+Built with ❤️ by oyeyinka for Nigerian students.
