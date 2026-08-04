@@ -6,6 +6,7 @@ import { progress, questions } from '@prepwise/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { TierBadge } from '@/components/ui';
+import StudyInsightsCard from '@/components/StudyInsightsCard';
 
 const SUBJECT_ICONS: Record<string, string> = {
   'Mathematics': '📐', 'English Language': '📖', 'Biology': '🔬',
@@ -116,6 +117,11 @@ export default function DashboardPage() {
             </button>
           )}
         </div>
+      </div>
+
+      {/* AI Study Insights */}
+      <div className="mb-8">
+        <StudyInsightsCard userTier={user?.subscriptionTier ?? 'FREE'} />
       </div>
 
       {/* Badges */}

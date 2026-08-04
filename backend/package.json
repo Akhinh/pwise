@@ -2,6 +2,14 @@
   "name": "@prepwise/backend",
   "version": "1.0.0",
   "private": true,
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true
+  },
+  
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/index.ts",
     "build": "tsup src/index.ts --format cjs --out-dir dist --no-splitting",
@@ -11,8 +19,10 @@
     "db:migrate": "ts-node src/database/migrate.ts",
     "db:seed": "ts-node src/database/seeds/seed.ts"
   },
+  
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
+    "@google/genai": "^2.15.0",
     "@prepwise/types": "*",
     "@supabase/supabase-js": "^2.43.0",
     "bcryptjs": "^2.4.3",

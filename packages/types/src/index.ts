@@ -200,6 +200,17 @@ export interface AiChatMessage {
   timestamp: string;
 }
 
+export interface StudyInsight {
+  id: string;
+  summary: string;
+  strengths: { subject: string; note: string }[];
+  weaknesses: { subject: string; topic?: string; note: string }[];
+  studyPlan: { day: string; focus: string; tasks: string[] }[];
+  quizSessionsUsed: number;
+  model: string;
+  generatedAt: string;
+}
+
 // ── Flagged Question ─────────────────────────────────────────
 
 export interface FlaggedQuestion {

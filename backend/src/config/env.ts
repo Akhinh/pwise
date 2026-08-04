@@ -31,6 +31,10 @@ export const env = {
     refreshExpiresIn: optional('JWT_REFRESH_EXPIRES_IN', '30d'),
   },
 
+  gemini: {
+    apiKey: required('GEMINI_API_KEY'),
+  },
+
   anthropic: {
     apiKey: required('ANTHROPIC_API_KEY'),
   },

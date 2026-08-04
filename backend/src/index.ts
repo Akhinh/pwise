@@ -23,6 +23,8 @@ import { progressRoutes, leaderboardRoutes } from './modules/progress/progress.m
 import { paymentsRoutes } from './modules/payments/payments.module';
 import rateLimit from 'express-rate-limit';
 import { theoryQuizRoutes } from './modules/theory-quiz/theory-quiz.module';
+import { studyInsightsRoutes } from './modules/study-insights/study-insights.module';
+
 
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -79,6 +81,7 @@ app.use(`${v1}/leaderboard`,   leaderboardRoutes);
 app.use(`${v1}/subscriptions`, paymentsRoutes);
 app.use(`${v1}/webhooks`,      paymentsRoutes);
 app.use('/api/v1/theory-quiz', theoryQuizRoutes);
+app.use('/api/v1/study-insights', studyInsightsRoutes);
 
 // ── 404 & Error Handling ──────────────────────────────────────
 app.use(notFound);

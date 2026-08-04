@@ -1,6 +1,6 @@
 -- ============================================================
 -- PrepWise — Migration 001: Initial Schema
--- Run this in your Supabase SQL Editor
+-- on supabase sql editor
 -- ============================================================
 
 -- Enable UUID generation
@@ -182,3 +182,25 @@ CREATE TABLE ai_usage_log (
   call_count INTEGER NOT NULL DEFAULT 0,
   UNIQUE (user_id, date)
 );
+
+--using gemini---
+
+CREATE TABLE study_insights (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  summary            TEXT NOT NULL,
+  strengths          JSONB NOT NULL DEFAULT '[]',   -- [{subject, note}]
+  weaknesses         JSONB NOT NULL DEFAULT '[]',   -- [{subject, topic, note}]
+  study_plan         JSONB NOT NULL DEFAULT '[]',   -- [{day, focus, tasks: []}]
+  quiz_sessions_used INTEGER DEFAULT 0,             -- how many sessions fed this insight
+  model              TEXT DEFAULT 'gemini-3.6-flash',
+  generated_at       TIMESTAMPTZ DEFAULT now(),
+  created_at         TIMESTAMPTZ DEFAULT now()
+);
+
+-- Only keep latest insight per user readily queryable
+CREATE INDEX idx_study_insights_user_latest
+  ON study_insights (user_id, generated_at DESC);
+
+-- Simple cooldown enforcement is done in application code (1 generation per 24h),
+-- no DB constraint needed since users may want manual refresh occasionally.

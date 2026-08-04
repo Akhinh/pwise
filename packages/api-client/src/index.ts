@@ -1,14 +1,13 @@
 // ============================================================
 // PrepWise — Shared API Client
 // Used by both the web app and mobile app.
-// Set API_BASE_URL in your environment before using.
 // ============================================================
 
 import type {
   ApiResponse, PaginatedResponse, User, Question, QuestionForQuiz,
   QuizSession, QuizResult, ProgressSummary, SubjectProgress,
   ActivityDataPoint, AiExplanation, AiChatMessage, Subscription,
-  ExamType, QuizMode, Difficulty,
+  ExamType, QuizMode, Difficulty, StudyInsight
 } from '@prepwise/types';
 
 let accessToken: string | null = null;
@@ -270,4 +269,18 @@ export const subscriptions = {
 
   getCurrent: () =>
     request<Subscription | null>('/api/v1/subscriptions/current'),
+};
+
+
+
+// ── Study Insights ───────────────────────────────────────────
+
+export const studyInsights = {
+  generate: () =>
+    request<StudyInsight>('/api/v1/study-insights/generate', {
+      method: 'POST',
+    }, 2, 20000), // Gemini call can take a while — same pattern as ai.explain/ai.chat
+ 
+  getLatest: () =>
+    request<StudyInsight | null>('/api/v1/study-insights'),
 };

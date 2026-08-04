@@ -1,7 +1,5 @@
 // ============================================================
 // PrepWise — Theory Quiz Module
-// Place in: backend/src/modules/theory-quiz/theory-quiz.module.ts
-// Register in app.ts: app.use('/api/v1/theory-quiz', theoryQuizRoutes)
 // ============================================================
 
 import { Router, Request, Response, NextFunction } from 'express';
